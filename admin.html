@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>پنل مدیریت | علی ابراهیمی</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="auth.css">
+   <!-- آیکون‌های اصلی برای مرورگرها -->
+<link rel="icon" type="image/png" sizes="32x32" href="./asli.png">
+<link rel="icon" type="image/png" sizes="16x16" href="./asli.png">
+<link rel="shortcut icon" href="./asli.png">
+
+<!-- برای دستگاه‌های اپل (آیکون وقتی سایت رو به صفحه اصلی اضافه می‌کنن) -->
+<link rel="apple-touch-icon" sizes="180x180" href="./asli.png">
+
+<!-- اگه مرورگر از webmanifest پشتیبانی می‌کنه (اختیاری) -->
+<link rel="manifest" href="./asli.png">
+    <style>
+        .admin-container {
+            max-width: 1200px;
+            margin: 100px auto;
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: var(--shadow);
+        }
+        .admin-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        .admin-tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 50px;
+            background: #f0f0f0;
+            transition: var(--transition);
+        }
+        .admin-tab.active {
+            background: var(--primary-color);
+            color: white;
+        }
+        .admin-section {
+            display: none;
+        }
+        .admin-section.active {
+            display: block;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .btn-ban, .btn-promote, .btn-demote, .btn-reply, .btn-delete {
+            padding: 5px 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            color: white;
+            margin: 2px;
+        }
+        .btn-ban { background-color: #dc3545; }
+        .btn-promote { background-color: #28a745; }
+        .btn-demote { background-color: #ffc107; color: black; }
+        .btn-reply { background-color: #17a2b8; }
+        .btn-delete { background-color: #dc3545; }
+        .btn-ban:hover { background-color: #c82333; }
+        .btn-promote:hover { background-color: #218838; }
+        .btn-demote:hover { background-color: #e0a800; }
+        .btn-reply:hover { background-color: #138496; }
+        .btn-delete:hover { background-color: #c82333; }
+
+        .message-item, .comment-item {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            background: #f9f9f9;
+        }
+        .message-header, .comment-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+        .message-body, .comment-body {
+            margin: 10px 0;
+        }
+        .reply-area {
+            margin-top: 10px;
+            padding: 10px;
+            background: #fff;
+            border-radius: 5px;
+        }
+        .reply-text {
+            width: 100%;
+            margin-bottom: 5px;
+        }
+        .disabled-btn {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="auth-page">
+    <a href="index.html" class="back-to-home"><i class="fas fa-arrow-right"></i> بازگشت به صفحه اصلی</a>
+    <div class="admin-container">
+        <h1 class="auth-title">پنل مدیریت</h1>
+
+        <div class="admin-tabs">
+            <div class="admin-tab active" data-tab="users">کاربران</div>
+            <div class="admin-tab" data-tab="comments">نظرات</div>
+            <div class="admin-tab" data-tab="messages">پیام‌ها</div>
+        </div>
+
+        <div id="usersSection" class="admin-section active">
+            <h2>لیست کاربران</h2>
+            <table id="usersTable">
+                <thead>
+                    <tr>
+                        <th>نام</th>
+                        <th>ایمیل</th>
+                        <th>رمز عبور</th>
+                        <th>نقش</th>
+                        <th>وضعیت</th>
+                        <th>عملیات</th>
+                    </tr>
+                </thead>
+                <tbody id="usersTableBody"></tbody>
+            </table>
+        </div>
+
+        <div id="commentsSection" class="admin-section">
+            <h2>مدیریت نظرات</h2>
+            <div id="adminCommentsList"></div>
+        </div>
+
+        <div id="messagesSection" class="admin-section">
+            <h2>مدیریت پیام‌های تماس</h2>
+            <div id="adminMessagesList"></div>
+        </div>
+    </div>
+
+    <script src="auth-system.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const user = auth.getCurrentUser();
+            if (!user || !auth.isAdmin()) {
+                alert('شما دسترسی به این صفحه ندارید.');
+                window.location.href = 'index.html';
+                return;
+            }
+
+            const isSuper = auth.isSuperAdmin();
+
+            // تغییر تب‌ها
+            document.querySelectorAll('.admin-tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                    document.querySelectorAll('.admin-section').forEach(s => s.classList.remove('active'));
+                    document.getElementById(this.dataset.tab + 'Section').classList.add('active');
+                });
+            });
+
+            // نمایش کاربران
+            function renderUsers() {
+                const users = auth.getAllUsers();
+                const tbody = document.getElementById('usersTableBody');
+                let html = '';
+                users.forEach(u => {
+                    let roleDisplay = '';
+                    if (u.role === 'superadmin') roleDisplay = 'مدیر ارشد';
+                    else if (u.role === 'admin') roleDisplay = 'مدیر';
+                    else roleDisplay = 'کاربر';
+
+                    let actions = '';
+
+                    // دکمه بن/آنبن
+                    if (isSuper) {
+                        if (u.id !== user.id) {
+                            actions += `<button class="btn-ban" data-id="${u.id}" data-banned="${u.banned}">${u.banned ? 'رفع انسداد' : 'مسدود'}</button>`;
+                        } else {
+                            actions += `<button class="btn-ban disabled-btn" disabled>${u.banned ? 'رفع انسداد' : 'مسدود'}</button>`;
+                        }
+                    } else {
+                        if (u.role === 'user') {
+                            actions += `<button class="btn-ban" data-id="${u.id}" data-banned="${u.banned}">${u.banned ? 'رفع انسداد' : 'مسدود'}</button>`;
+                        }
+                    }
+
+                    // دکمه‌های ارتقا/کاهش فقط برای سوپرادمین
+                    if (isSuper && u.id !== user.id) {
+                        if (u.role === 'user') {
+                            actions += `<button class="btn-promote" data-id="${u.id}">ارتقا به مدیر</button>`;
+                        } else if (u.role === 'admin') {
+                            actions += `<button class="btn-demote" data-id="${u.id}">کاهش به کاربر</button>`;
+                        }
+                    }
+
+                    html += `
+                        <tr>
+                            <td>${u.firstName} ${u.lastName}</td>
+                            <td>${u.email}</td>
+                            <td>${u.password}</td>
+                            <td>${roleDisplay}</td>
+                            <td>${u.banned ? 'مسدود' : 'فعال'}</td>
+                            <td>${actions}</td>
+                        </tr>
+                    `;
+                });
+                tbody.innerHTML = html;
+
+                document.querySelectorAll('.btn-ban').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const id = this.dataset.id;
+                        const currentlyBanned = this.dataset.banned === 'true';
+                        auth.updateUser(id, { banned: !currentlyBanned });
+                        renderUsers();
+                    });
+                });
+
+                if (isSuper) {
+                    document.querySelectorAll('.btn-promote').forEach(btn => {
+                        btn.addEventListener('click', function() {
+                            const id = this.dataset.id;
+                            auth.updateUser(id, { role: 'admin' });
+                            renderUsers();
+                        });
+                    });
+                    document.querySelectorAll('.btn-demote').forEach(btn => {
+                        btn.addEventListener('click', function() {
+                            const id = this.dataset.id;
+                            auth.updateUser(id, { role: 'user' });
+                            renderUsers();
+                        });
+                    });
+                }
+            }
+
+            // نمایش نظرات (بدون ایمیل)
+            function renderAdminComments() {
+                const comments = auth.getComments().sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+                const container = document.getElementById('adminCommentsList');
+                let html = '';
+                comments.forEach(c => {
+                    html += `
+                        <div class="comment-item" data-id="${c.id}">
+                            <div class="comment-header">
+                                <strong>${c.name}</strong> - ${new Date(c.timestamp).toLocaleDateString('fa-IR')}
+                            </div>
+                            <div class="comment-body">${c.text}</div>
+                            ${c.replies && c.replies.length ? `
+                                <div style="margin:10px 0; background:#e9ecef; padding:10px;">
+                                    <strong>پاسخ‌ها:</strong>
+                                    ${c.replies.map(r => `<div><strong>${r.adminName}:</strong> ${r.text} <small>${new Date(r.timestamp).toLocaleDateString('fa-IR')}</small></div>`).join('')}
+                                </div>
+                            ` : ''}
+                            <div class="reply-area">
+                                <textarea id="replyComment-${c.id}" class="reply-text" rows="2" placeholder="پاسخ شما..."></textarea>
+                                <button class="btn-reply" data-type="comment" data-id="${c.id}">ارسال پاسخ</button>
+                                <button class="btn-delete" data-type="comment" data-id="${c.id}">حذف نظر</button>
+                            </div>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html || '<p>هیچ نظری وجود ندارد.</p>';
+
+                document.querySelectorAll('.btn-reply[data-type="comment"]').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const id = this.dataset.id;
+                        const replyText = document.getElementById(`replyComment-${id}`).value.trim();
+                        if (!replyText) return;
+                        const adminUser = auth.getCurrentUser();
+                        const adminName = adminUser ? `${adminUser.firstName} ${adminUser.lastName}` : 'ادمین';
+                        if (auth.addReply(id, replyText, adminName)) {
+                            alert('پاسخ ثبت شد');
+                            renderAdminComments();
+                        }
+                    });
+                });
+                document.querySelectorAll('.btn-delete[data-type="comment"]').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const id = this.dataset.id;
+                        if (confirm('آیا از حذف این نظر اطمینان دارید؟')) {
+                            auth.deleteComment(id);
+                            renderAdminComments();
+                        }
+                    });
+                });
+            }
+
+            // نمایش پیام‌های تماس
+            function renderAdminMessages() {
+                const messages = auth.getMessages().sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+                const container = document.getElementById('adminMessagesList');
+                let html = '';
+                messages.forEach(m => {
+                    html += `
+                        <div class="message-item" data-id="${m.id}">
+                            <div class="message-header">
+                                <strong>${m.name}</strong> (${m.email}) - ${new Date(m.timestamp).toLocaleDateString('fa-IR')}
+                                <br><small>موضوع: ${m.subject}</small>
+                            </div>
+                            <div class="message-body">${m.message}</div>
+                            ${m.replies && m.replies.length ? `
+                                <div style="margin:10px 0; background:#e9ecef; padding:10px;">
+                                    <strong>پاسخ‌های ادمین:</strong>
+                                    ${m.replies.map(r => `<div><strong>${r.adminName}:</strong> ${r.text} <small>${new Date(r.timestamp).toLocaleDateString('fa-IR')}</small></div>`).join('')}
+                                </div>
+                            ` : ''}
+                            <div class="reply-area">
+                                <textarea id="replyMessage-${m.id}" class="reply-text" rows="2" placeholder="پاسخ شما..."></textarea>
+                                <button class="btn-reply" data-type="message" data-id="${m.id}">ارسال پاسخ</button>
+                                <button class="btn-delete" data-type="message" data-id="${m.id}">حذف پیام</button>
+                            </div>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html || '<p>هیچ پیامی وجود ندارد.</p>';
+
+                document.querySelectorAll('.btn-reply[data-type="message"]').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const id = this.dataset.id;
+                        const replyText = document.getElementById(`replyMessage-${id}`).value.trim();
+                        if (!replyText) return;
+                        const adminUser = auth.getCurrentUser();
+                        const adminName = adminUser ? `${adminUser.firstName} ${adminUser.lastName}` : 'ادمین';
+                        if (auth.addMessageReply(id, replyText, adminName)) {
+                            alert('پاسخ ثبت شد');
+                            renderAdminMessages();
+                        }
+                    });
+                });
+                document.querySelectorAll('.btn-delete[data-type="message"]').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const id = this.dataset.id;
+                        if (confirm('آیا از حذف این پیام اطمینان دارید؟')) {
+                            auth.deleteMessage(id);
+                            renderAdminMessages();
+                        }
+                    });
+                });
+            }
+
+            renderUsers();
+            renderAdminComments();
+            renderAdminMessages();
+        });
+    </script>
+</body>
+</html>

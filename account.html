@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>حساب کاربری | علی ابراهیمی</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="auth.css">
+    <!-- آیکون‌های اصلی برای مرورگرها -->
+<link rel="icon" type="image/png" sizes="32x32" href="./asli.png">
+<link rel="icon" type="image/png" sizes="16x16" href="./asli.png">
+<link rel="shortcut icon" href="./asli.png">
+
+<!-- برای دستگاه‌های اپل (آیکون وقتی سایت رو به صفحه اصلی اضافه می‌کنن) -->
+<link rel="apple-touch-icon" sizes="180x180" href="./asli.png">
+
+<!-- اگه مرورگر از webmanifest پشتیبانی می‌کنه (اختیاری) -->
+<link rel="manifest" href="./asli.png">
+    <style>
+        .account-container {
+            max-width: 800px;
+            margin: 100px auto;
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: var(--shadow);
+        }
+        .account-info p {
+            margin: 15px 0;
+            font-size: 1.1rem;
+        }
+        .password-field {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .password-field input {
+            border: none;
+            background: transparent;
+            font-size: 1.1rem;
+            flex: 1;
+        }
+        .toggle-password-account {
+            background: none;
+            border: none;
+            color: var(--primary-color);
+            cursor: pointer;
+            font-size: 1.2rem;
+        }
+        .btn-logout {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-top: 20px;
+        }
+        .btn-logout:hover {
+            background-color: #c82333;
+        }
+        .messages-section {
+            margin-top: 40px;
+            border-top: 2px solid #eee;
+            padding-top: 20px;
+        }
+        .message-item {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+            background: #f9f9f9;
+        }
+        .message-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .message-reply {
+            margin-top: 10px;
+            background: #e9ecef;
+            padding: 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body class="auth-page">
+    <a href="index.html" class="back-to-home"><i class="fas fa-arrow-right"></i> بازگشت به صفحه اصلی</a>
+    <div class="account-container">
+        <h1 class="auth-title">حساب کاربری</h1>
+        <div id="accountInfo" class="account-info">
+            <!-- اطلاعات توسط js پر می‌شود -->
+        </div>
+        <button id="logoutBtn" class="btn-logout">خروج از حساب</button>
+
+        <div class="messages-section">
+            <h2>پیام‌های ارسالی شما</h2>
+            <div id="userMessages"></div>
+        </div>
+    </div>
+
+    <script src="auth-system.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const user = auth.getCurrentUser();
+            if (!user) {
+                alert('لطفا ابتدا وارد شوید.');
+                window.location.href = 'login.html';
+                return;
+            }
+
+            // نمایش اطلاعات کاربری
+            const accountInfo = document.getElementById('accountInfo');
+            accountInfo.innerHTML = `
+                <p><strong>نام:</strong> ${user.firstName} ${user.lastName}</p>
+                <p><strong>ایمیل:</strong> ${user.email}</p>
+                <p><strong>نقش:</strong> ${user.role === 'admin' ? 'مدیر' : 'کاربر عادی'}</p>
+                <p><strong>تاریخ عضویت:</strong> ${new Date(user.createdAt).toLocaleDateString('fa-IR')}</p>
+                <p><strong>رمز عبور:</strong> <span class="password-field">
+                    <input type="password" id="passwordField" value="${user.password}" readonly>
+                    <button class="toggle-password-account" id="togglePassword"><i class="fas fa-eye"></i></button>
+                </span></p>
+            `;
+
+            document.getElementById('togglePassword').addEventListener('click', function() {
+                const pwdField = document.getElementById('passwordField');
+                const icon = this.querySelector('i');
+                if (pwdField.type === 'password') {
+                    pwdField.type = 'text';
+                    icon.classList.remove('fa-eye');
+                    icon.classList.add('fa-eye-slash');
+                } else {
+                    pwdField.type = 'password';
+                    icon.classList.remove('fa-eye-slash');
+                    icon.classList.add('fa-eye');
+                }
+            });
+
+            document.getElementById('logoutBtn').addEventListener('click', function() {
+                auth.logout();
+                window.location.href = 'index.html';
+            });
+
+            // نمایش پیام‌های کاربر
+            function renderUserMessages() {
+                const messages = auth.getUserMessages(user.email);
+                const container = document.getElementById('userMessages');
+                if (messages.length === 0) {
+                    container.innerHTML = '<p>شما هنوز پیامی ارسال نکرده‌اید.</p>';
+                    return;
+                }
+                let html = '';
+                messages.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+                messages.forEach(m => {
+                    html += `
+                        <div class="message-item">
+                            <div class="message-header">
+                                <span>موضوع: ${m.subject}</span>
+                                <span>${new Date(m.timestamp).toLocaleDateString('fa-IR')}</span>
+                            </div>
+                            <div class="message-body">${m.message}</div>
+                            ${m.replies && m.replies.length ? `
+                                <div class="message-reply">
+                                    <strong>پاسخ ادمین:</strong>
+                                    ${m.replies.map(r => `<div>${r.text} <small>(${new Date(r.timestamp).toLocaleDateString('fa-IR')})</small></div>`).join('')}
+                                </div>
+                            ` : '<p style="color:#999;">هنوز پاسخی داده نشده است.</p>'}
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+            }
+
+            renderUserMessages();
+        });
+    </script>
+</body>
+</html>
